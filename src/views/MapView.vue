@@ -1,66 +1,62 @@
 <script setup>
 import svgComponent from "@/components/svgComponent.vue";
-import model from "@/hooks/model";
-import router from "@/router";
+import model from "@/assets/model";
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 
 // variables
+const router = useRouter();
 const count = ref(0);
+const modelStores = model;
+const isAuth = ref(localStorage.getItem("auth"));
+authentication();
+
+modelStores.forEach((store) => {
+  store.id = count.value++;
+});
+
+const tradeStores = ref(JSON.parse(localStorage.getItem("stores")) || modelStores);
+
+localStorage.setItem("stores", JSON.stringify(tradeStores.value));
+
+// function
+
 function authentication() {
-  if (localStorage.getItem("auth")) return false;
+  if (isAuth.value) return false;
   else {
     router.push({ name: "auth" });
   }
 }
-authentication();
-const modelStores = model;
-modelStores.map((store) => {
-  store.id = Math.ceil(Math.random() * 10 ** 10);
-});
-const tradeStores = ref(JSON.parse(localStorage.getItem("stores")) || modelStores);
-const nameNewStore = ref("Название");
-const amountProduct = ref("Количество");
-localStorage.setItem("stores", JSON.stringify(tradeStores.value));
-setTimeout(() => {
-  const svgElement = document.getElementById("svgElement");
-  svgElement.addEventListener("dblclick", addStore);
-  const storeListElement = document.querySelector(".trade-stores");
-  const storeElement = document.querySelector(".store-name");
-}, 0);
 
-// function
-
-function showInfoStore(e) {
-  const curEl = e.target.nextElementSibling;
-  curEl.classList.toggle("out");
+function showInfoStore(store) {
+  !store.show ? (store.show = true) : delete store.show;
+  const index = findIndex(tradeStores.value, store);
+  tradeStores.value[index] = { ...store };
+  console.log(index);
+  localStorage.setItem("stores", JSON.stringify(tradeStores.value));
 }
 
 function addStore(e) {
   const store = {
-    name: nameNewStore.value,
-    amount: amountProduct.value,
+    name: "Название",
+    amount: "Количество",
     x: e.pageX / 10,
-    y: e.pageY / 10 - 10,
+    y: (e.pageY - 86) / 10,
     id: Date.now(),
   };
   tradeStores.value.push(store);
   localStorage.setItem("stores", JSON.stringify(tradeStores.value));
 }
 
-function deleteStore(e) {
-  const nameStore = e.target.closest("#info").textContent.split(" ").splice(0, 1).join("");
-  e.target.closest("li").remove();
-  let stores = JSON.parse(localStorage.getItem("stores"));
-  const index = stores.findIndex((store) => {
-    return store.name === nameStore;
-  });
-  stores.splice(index, 1);
-  localStorage.setItem("stores", JSON.stringify(stores));
+function deleteStore(store) {
+  const index = findIndex(tradeStores.value, store);
+  tradeStores.value.splice(index, 1);
+  localStorage.setItem("stores", JSON.stringify(tradeStores.value));
 }
 
 function resetModel() {
-  localStorage.setItem("stores", JSON.stringify(modelStores));
-  location.reload();
+  tradeStores.value = modelStores;
+  localStorage.setItem("stores", JSON.stringify(tradeStores.value));
 }
 
 function onInputName(e) {
@@ -81,11 +77,10 @@ function exitModel() {
   router.push({ name: "auth" });
 }
 
-function startDrag(e, store) {
-  console.log(store);
+function startDrag(e, id) {
   e.dataTransfer.dropEffect = "move";
   e.dataTransfer.effectAllowed = "move";
-  e.dataTransfer.setData("storeID", store.id);
+  e.dataTransfer.setData("storeID", id);
 }
 
 function onDrop(e) {
@@ -97,39 +92,48 @@ function onDrop(e) {
   tradeStores.value.splice(index, 1, store);
   localStorage.setItem("stores", JSON.stringify(tradeStores.value));
 }
+// reusable function
+
+function findIndex(store) {
+  const index = tradeStores.value.findIndex((el) => {
+    return el.id === store.id;
+  });
+  return index;
+}
 </script>
 
 <template>
-  <div
-    class="container"
-    draggable="true"
-    @drop="onDrop($event)"
-    @dragenter.prevent
-    @dragover.prevent
-  >
+  <div class="container">
     <button @click="exitModel" class="btn">Выйти</button>
     <button @click="resetModel" class="btn">Сбросить модель</button>
-    <ul class="trade-stores">
-      <li
+    <div class="trade-stores">
+      <div
         v-for="store in tradeStores"
         class="store-name"
         :key="store.id"
         :id="store.id"
         :style="{
-          top: store.y * 10 + 88 + 'px',
+          top: store.y * 10 + 74 + 'px',
           left: store.x * 10 - 12 + 'px',
         }"
         draggable="true"
-        @dragstart="startDrag($event, store)"
+        @dragstart="startDrag($event, store.id)"
+        @dragenter.prevent
+        @dragover.prevent
       >
-        <i @click="showInfoStore" class="material-icons">adjust</i>
-        <span class="out" id="info" contenteditable="true" @input="onInputName">
+        <div class="buttons">
+          <a class="add-icons">
+            <i @click="showInfoStore(store)" class="material-icons">adjust</i>
+          </a>
+        </div>
+        <span :class="{ out: !store.show }" id="info" contenteditable="true" @input="onInputName">
           {{ `${store.name} - ${store.amount} шт.` }}
-          <i @click="deleteStore" class="material-icons">delete</i>
+          <i @click="deleteStore(store)" class="material-icons">delete</i>
         </span>
-      </li>
-    </ul>
-    <svgComponent id="svgElement"> </svgComponent>
+      </div>
+    </div>
+    <svgComponent @dblclick="addStore" @drop="onDrop($event)" @dragenter.prevent @dragover.prevent>
+    </svgComponent>
   </div>
 </template>
 
@@ -150,13 +154,25 @@ function onDrop(e) {
   width: fit-content;
   background-color: rgba(0, 0, 0, 0);
   display: flex;
-  cursor: move;
+  a {
+    margin: 0;
+    padding: 0;
+    color: black;
+  }
   span {
     color: black;
     font-weight: 500;
     text-shadow: 1px 1px 2px black;
   }
 }
+.add-icons {
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0);
+  border: none;
+  padding: 0;
+}
+
 .material-icons {
   width: 24px;
   height: 24px;
