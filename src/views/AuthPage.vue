@@ -16,7 +16,6 @@ if (isAuth.value === true) {
 function userAuth() {
   if (login.value === "test" && password.value === "test") {
     isAuth.value = true;
-    console.log(isAuth.value);
     localStorage.setItem("auth", JSON.stringify(isAuth.value));
     router.push({
       name: "MapView",

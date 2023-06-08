@@ -1,7 +1,7 @@
 <script setup>
 import svgComponent from "@/components/svgComponent.vue";
 import model from "@/assets/model";
-import { ref } from "vue";
+import { ref, watchEffect } from "vue";
 import { useRouter } from "vue-router";
 
 // variables
@@ -9,6 +9,7 @@ const router = useRouter();
 const count = ref(0);
 const modelStores = model;
 const isAuth = ref(localStorage.getItem("auth"));
+
 authentication();
 
 modelStores.forEach((store) => {
@@ -16,9 +17,7 @@ modelStores.forEach((store) => {
 });
 
 const tradeStores = ref(JSON.parse(localStorage.getItem("stores")) || modelStores);
-
-localStorage.setItem("stores", JSON.stringify(tradeStores.value));
-
+watchEffect(() => localStorage.setItem("stores", JSON.stringify(tradeStores.value)));
 // function
 
 function authentication() {
@@ -30,9 +29,8 @@ function authentication() {
 
 function showInfoStore(store) {
   !store.show ? (store.show = true) : delete store.show;
-  const index = findIndex(tradeStores.value, store);
+  const index = findIndex(store);
   tradeStores.value[index] = { ...store };
-  console.log(index);
   localStorage.setItem("stores", JSON.stringify(tradeStores.value));
 }
 
@@ -49,7 +47,7 @@ function addStore(e) {
 }
 
 function deleteStore(store) {
-  const index = findIndex(tradeStores.value, store);
+  const index = findIndex(store);
   tradeStores.value.splice(index, 1);
   localStorage.setItem("stores", JSON.stringify(tradeStores.value));
 }
@@ -57,19 +55,7 @@ function deleteStore(store) {
 function resetModel() {
   tradeStores.value = modelStores;
   localStorage.setItem("stores", JSON.stringify(tradeStores.value));
-}
-
-function onInputName(e) {
-  const inputName = e.target.textContent.split(" ").splice(0, 1).join("");
-  const inputAmount = e.target.textContent.split(" ").splice(2, 1).join("");
-  const id = +e.target.parentNode.getAttribute("id");
-  let stores = JSON.parse(localStorage.getItem("stores"));
-  const index = stores.findIndex((store) => {
-    return store.id === id;
-  });
-  stores[index].name = inputName;
-  stores[index].amount = inputAmount;
-  localStorage.setItem("stores", JSON.stringify(stores));
+  location.reload();
 }
 
 function exitModel() {
@@ -104,42 +90,55 @@ function findIndex(store) {
 
 <template>
   <div class="container">
-    <button @click="exitModel" class="btn">Выйти</button>
-    <button @click="resetModel" class="btn">Сбросить модель</button>
-    <div class="trade-stores">
-      <div
-        v-for="store in tradeStores"
-        class="store-name"
-        :key="store.id"
-        :id="store.id"
-        :style="{
-          top: store.y * 10 + 74 + 'px',
-          left: store.x * 10 - 12 + 'px',
-        }"
-        draggable="true"
-        @dragstart="startDrag($event, store.id)"
+    <div class="buttons">
+      <button @click="exitModel" class="btn">Выйти</button>
+      <button @click="resetModel" class="btn">Сбросить модель</button>
+    </div>
+    <div
+      class="store-name"
+      v-for="store in tradeStores"
+      :key="store.id"
+      :id="store.id"
+      :style="{
+        top: store.y * 10 + 74 + 'px',
+        left: store.x * 10 - 12 + 'px',
+      }"
+    >
+      <div class="buttons">
+        <a class="add-icons">
+          <i
+            @click="showInfoStore(store)"
+            class="material-icons"
+            draggable="true"
+            @dragstart="startDrag($event, store.id)"
+            @dragenter.prevent
+            @dragover.prevent
+            >adjust</i
+          >
+        </a>
+      </div>
+      <div :class="{ out: store.show }" class="info-store">
+        <input v-model="store.name" class="input-info" />
+        <input v-model="store.amount" class="input-info" />
+        <i @click="deleteStore(store)" class="tiny material-icons">delete</i>
+      </div>
+    </div>
+    <div class="svgElement">
+      <svgComponent
+        @dblclick="addStore"
+        @drop="onDrop($event)"
         @dragenter.prevent
         @dragover.prevent
       >
-        <div class="buttons">
-          <a class="add-icons">
-            <i @click="showInfoStore(store)" class="material-icons">adjust</i>
-          </a>
-        </div>
-        <span :class="{ out: !store.show }" id="info" contenteditable="true" @input="onInputName">
-          {{ `${store.name} - ${store.amount} шт.` }}
-          <i @click="deleteStore(store)" class="material-icons">delete</i>
-        </span>
-      </div>
+      </svgComponent>
     </div>
-    <svgComponent @dblclick="addStore" @drop="onDrop($event)" @dragenter.prevent @dragover.prevent>
-    </svgComponent>
   </div>
 </template>
 
 <style lang="scss">
 .container {
   margin: 0;
+  width: fit-content;
 }
 .btn {
   margin: 25px;
@@ -159,11 +158,6 @@ function findIndex(store) {
     padding: 0;
     color: black;
   }
-  span {
-    color: black;
-    font-weight: 500;
-    text-shadow: 1px 1px 2px black;
-  }
 }
 .add-icons {
   width: 24px;
@@ -179,11 +173,24 @@ function findIndex(store) {
   text-shadow: none;
   cursor: pointer;
 }
-.out {
+.info-store {
   display: none;
-  align-items: start;
 }
-.out:active {
-  border: 0px;
+.out {
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  .input-info {
+    width: 80px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    color: black;
+    font-size: 14px;
+    font-weight: 500;
+    text-shadow: 1px 1px 2px black;
+    border: none;
+    box-sizing: border-box;
+  }
 }
 </style>
