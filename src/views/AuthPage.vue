@@ -1,17 +1,10 @@
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import router from "@/router/index";
 
-const router = useRouter();
 const login = ref("");
 const password = ref("");
 let isAuth = ref(localStorage.getItem("auth") || null);
-
-if (isAuth.value === true) {
-  router.push({
-    name: "MapView",
-  });
-}
 
 function userAuth() {
   if (login.value === "test" && password.value === "test") {
@@ -35,7 +28,7 @@ function userAuth() {
       </div>
       <div class="row">
         <div class="input-field col s12">
-          <input v-model="password" id="password" type="text" class="validate" />
+          <input v-model="password" id="password" type="password" class="validate" />
           <label for="password">Пароль</label>
         </div>
       </div>

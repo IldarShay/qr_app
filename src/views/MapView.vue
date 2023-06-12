@@ -2,15 +2,11 @@
 import svgComponent from "@/components/svgComponent.vue";
 import model from "@/assets/model";
 import { ref, watchEffect } from "vue";
-import { useRouter } from "vue-router";
+import router from "@/router/index";
 
 // variables
-const router = useRouter();
 const count = ref(0);
 const modelStores = model;
-const isAuth = ref(localStorage.getItem("auth"));
-
-authentication();
 
 modelStores.forEach((store) => {
   store.id = count.value++;
@@ -18,14 +14,6 @@ modelStores.forEach((store) => {
 
 const tradeStores = ref(JSON.parse(localStorage.getItem("stores")) || modelStores);
 watchEffect(() => localStorage.setItem("stores", JSON.stringify(tradeStores.value)));
-// function
-
-function authentication() {
-  if (isAuth.value) return false;
-  else {
-    router.push({ name: "auth" });
-  }
-}
 
 function showInfoStore(store) {
   !store.show ? (store.show = true) : delete store.show;
@@ -60,7 +48,7 @@ function resetModel() {
 
 function exitModel() {
   localStorage.removeItem("auth");
-  router.push({ name: "auth" });
+  router.push("/");
 }
 
 function startDrag(e, id) {
